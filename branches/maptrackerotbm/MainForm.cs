@@ -12,15 +12,33 @@ using Tibia.Util;
 
 namespace MapTracker.NET
 {
+    // Todo:
+    // Instead of writing everything out to an otbm file right away,
+    // have some sort of intermediate state, either in memory or in a file
     public partial class MainForm : Form
     {
         #region Variables
         Client client;
         HashSet<Location> trackedTiles;
         List<Client> clientList;
+        Dictionary<ushort, ushort> clientToServer;
         Location mapBoundsNW;
         Location mapBoundsSE;
         MapWriter mapWriter;
+        bool processing;
+
+        struct SplitPacket
+        {
+            public byte Type;
+            public byte[] Packet;
+
+            public SplitPacket(byte type, byte[] packet)
+            {
+                this.Type = type;
+                this.Packet = packet;
+            }
+        }
+        Queue<SplitPacket> packetQueue;
         #endregion
 
         #region Form Controls
@@ -31,6 +49,10 @@ namespace MapTracker.NET
 
         private void MainForm_Load(object sender, EventArgs e)
         {
+            ItemsReader ir = new ItemsReader();
+            clientToServer = ir.GetClientToServerDictionary();
+            packetQueue = new Queue<SplitPacket>();
+
             ReloadClients();
 
             client = clientList[uxClients.SelectedIndex];
@@ -100,6 +122,8 @@ namespace MapTracker.NET
                 client.StopRawSocket();
                 client.StartRawSocket();
                 client.RawSocket.IncomingSplitPacket += IncomingSplitPacket;
+
+                processing = false;
             }
         }
 
@@ -121,6 +145,46 @@ namespace MapTracker.NET
         {
             if (type < 0x64 || type > 0x68)
                 return;
+            packetQueue.Enqueue(new SplitPacket(type, packet));
+            ProcessPacketQueue();
+        }
+
+        private void ProcessPacketQueue()
+        {
+            if (!processing && packetQueue.Count > 0)
+            {
+                StartProcessing();
+            }
+        }
+
+        private void StartProcessing()
+        {
+            processing = true;
+            Invoke(new EventHandler(delegate
+            {
+                uxStatus.Text = "Processing...";
+                uxStatus.ForeColor = Color.Red;
+            }));
+            ProcessPacket(packetQueue.Dequeue());
+        }
+
+        private void DoneProcessing()
+        {
+            processing = false;
+            Invoke(new EventHandler(delegate
+            {
+                uxStatus.Text = "Done";
+                uxStatus.ForeColor = Color.Black;
+            }));
+            ProcessPacketQueue();
+        }
+
+        private void ProcessPacket(SplitPacket splitPacket)
+        {
+            byte type = splitPacket.Type;
+            byte[] packet = splitPacket.Packet;
+            if (type < 0x64 || type > 0x68)
+                return;
 
             NetworkMessage msg = new NetworkMessage(packet);
             Location pos;
@@ -131,6 +195,7 @@ namespace MapTracker.NET
             {
                 pos = msg.GetLocation();
                 ParseMapDescription(msg, pos.X - 8, pos.Y - 6, pos.Z, 18, 14);
+                DoneProcessing();
                 return;
             }
 
@@ -159,6 +224,7 @@ namespace MapTracker.NET
                 pos.X--;
                 ParseMapDescription(msg, (int)(pos.X - 8), (int)(pos.Y - 6), (int)(pos.Z), 1, 14);
             }
+            DoneProcessing();
         }
 
         private bool ParseMapDescription(NetworkMessage msg, int x, int y, int z, int width, int height)
@@ -322,13 +388,25 @@ namespace MapTracker.NET
             else
             {
                 Item item = new Item(client, thingId);
-                Invoke(new EventHandler(delegate
+                ushort oldThingId = 0;
+                if (clientToServer.ContainsKey(thingId))
+                {
+                    oldThingId = thingId;
+                    thingId = clientToServer[thingId];
+                }
+                else
+                {
+                    doTrack = false;
+                    Invoke(new EventHandler(delegate
                     {
-                        textBox1.AppendText(thingId.ToString() + Environment.NewLine);
+                        textBox1.AppendText("ClientId not in items.otb: " + thingId.ToString() + Environment.NewLine);
                     }));
-                //if (thingId > 903)
-                //    thingId -= 903;
-                //thingId -= 100;
+                }
+
+                //if (pos.Equals(new Location(32092, 32211, 7)))
+                //{
+                //    int i = 0;
+                //}
 
                 if (n == 1)
                 {

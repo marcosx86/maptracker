@@ -32,6 +32,8 @@
             this.uxClients = new System.Windows.Forms.ComboBox();
             this.uxStart = new System.Windows.Forms.Button();
             this.textBox1 = new System.Windows.Forms.TextBox();
+            this.uxStatus = new System.Windows.Forms.Label();
+            this.label1 = new System.Windows.Forms.Label();
             this.SuspendLayout();
             // 
             // uxClients
@@ -55,18 +57,39 @@
             // 
             // textBox1
             // 
-            this.textBox1.Location = new System.Drawing.Point(12, 41);
+            this.textBox1.Location = new System.Drawing.Point(12, 62);
             this.textBox1.Multiline = true;
             this.textBox1.Name = "textBox1";
-            this.textBox1.Size = new System.Drawing.Size(340, 146);
+            this.textBox1.ScrollBars = System.Windows.Forms.ScrollBars.Both;
+            this.textBox1.Size = new System.Drawing.Size(340, 178);
             this.textBox1.TabIndex = 12;
             this.textBox1.Text = resources.GetString("textBox1.Text");
+            // 
+            // uxStatus
+            // 
+            this.uxStatus.AutoSize = true;
+            this.uxStatus.Location = new System.Drawing.Point(49, 41);
+            this.uxStatus.Name = "uxStatus";
+            this.uxStatus.Size = new System.Drawing.Size(79, 13);
+            this.uxStatus.TabIndex = 13;
+            this.uxStatus.Text = "Not Processing";
+            // 
+            // label1
+            // 
+            this.label1.AutoSize = true;
+            this.label1.Location = new System.Drawing.Point(12, 41);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(40, 13);
+            this.label1.TabIndex = 13;
+            this.label1.Text = "Status:";
             // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(364, 199);
+            this.ClientSize = new System.Drawing.Size(364, 252);
+            this.Controls.Add(this.label1);
+            this.Controls.Add(this.uxStatus);
             this.Controls.Add(this.textBox1);
             this.Controls.Add(this.uxStart);
             this.Controls.Add(this.uxClients);
@@ -83,6 +106,8 @@
         private System.Windows.Forms.ComboBox uxClients;
         private System.Windows.Forms.Button uxStart;
         private System.Windows.Forms.TextBox textBox1;
+        private System.Windows.Forms.Label uxStatus;
+        private System.Windows.Forms.Label label1;
     }
 }
 
