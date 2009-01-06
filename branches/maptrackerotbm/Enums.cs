@@ -24,6 +24,7 @@ namespace MapTracker.NET
 
     public enum AttrType : byte
     {
+        None = 0,
         Description = 1,
         ExtFile = 2,
         TileFlags = 3,

@@ -34,6 +34,7 @@
             this.textBox1 = new System.Windows.Forms.TextBox();
             this.uxStatus = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
+            this.uxWrite = new System.Windows.Forms.Button();
             this.SuspendLayout();
             // 
             // uxClients
@@ -83,6 +84,16 @@
             this.label1.TabIndex = 13;
             this.label1.Text = "Status:";
             // 
+            // uxWrite
+            // 
+            this.uxWrite.Location = new System.Drawing.Point(185, 36);
+            this.uxWrite.Name = "uxWrite";
+            this.uxWrite.Size = new System.Drawing.Size(167, 23);
+            this.uxWrite.TabIndex = 11;
+            this.uxWrite.Text = "Write to File";
+            this.uxWrite.UseVisualStyleBackColor = true;
+            this.uxWrite.Click += new System.EventHandler(this.uxWrite_Click);
+            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -91,6 +102,7 @@
             this.Controls.Add(this.label1);
             this.Controls.Add(this.uxStatus);
             this.Controls.Add(this.textBox1);
+            this.Controls.Add(this.uxWrite);
             this.Controls.Add(this.uxStart);
             this.Controls.Add(this.uxClients);
             this.Name = "MainForm";
@@ -108,6 +120,7 @@
         private System.Windows.Forms.TextBox textBox1;
         private System.Windows.Forms.Label uxStatus;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Button uxWrite;
     }
 }
 
