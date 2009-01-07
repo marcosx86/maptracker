@@ -6,18 +6,14 @@ using System.IO;
 
 namespace MapTracker.NET
 {
-    public class ItemsReader
+    public class OtbReader : OtFileManager
     {
-        public const byte NodeStart = 0xFE;
-        public const byte NodeEnd = 0xFF;
-        public const byte Escape = 0xFD;
-
         private string fileName = "items.otb";
         private Dictionary<ushort, ushort> clientToServerDict;
         FileStream stream;
         byte[] buffer = new byte[128];
 
-        public ItemsReader()
+        public OtbReader()
         {
             clientToServerDict = new Dictionary<ushort, ushort>();
         }
