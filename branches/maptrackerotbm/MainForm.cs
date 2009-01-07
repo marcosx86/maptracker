@@ -6,12 +6,13 @@ using System.Windows.Forms;
 using Tibia.Objects;
 using Tibia.Packets;
 using Tibia.Util;
+using Tibia.Packets.Incoming;
 
 namespace MapTracker.NET
 {
     // Todo:
-    // Going subterranean doesnt work
-    // Parse floor change packets
+    // Many invalid items
+    // Show map boundaries under statistics
     // Splashes are the wrong color
     public partial class MainForm : Form
     {
@@ -135,8 +136,24 @@ namespace MapTracker.NET
 
             client.StopRawSocket();
             client.StartRawSocket();
-            client.RawSocket.IncomingSplitPacket -= IncomingSplitPacket;
-            client.RawSocket.IncomingSplitPacket += IncomingSplitPacket;
+            //client.RawSocket.IncomingSplitPacket -= IncomingSplitPacket;
+            //client.RawSocket.IncomingSplitPacket += IncomingSplitPacket;
+
+            client.RawSocket.ReceivedMapDescriptionIncomingPacket -= ReceivedMapPacket;
+            client.RawSocket.ReceivedMoveNorthIncomingPacket -= ReceivedMapPacket;
+            client.RawSocket.ReceivedMoveEastIncomingPacket -= ReceivedMapPacket;
+            client.RawSocket.ReceivedMoveSouthIncomingPacket -= ReceivedMapPacket;
+            client.RawSocket.ReceivedMoveWestIncomingPacket -= ReceivedMapPacket;
+            client.RawSocket.ReceivedFloorChangeDownIncomingPacket -= ReceivedMapPacket;
+            client.RawSocket.ReceivedFloorChangeUpIncomingPacket -= ReceivedMapPacket;
+
+            client.RawSocket.ReceivedMapDescriptionIncomingPacket += ReceivedMapPacket;
+            client.RawSocket.ReceivedMoveNorthIncomingPacket += ReceivedMapPacket;
+            client.RawSocket.ReceivedMoveEastIncomingPacket += ReceivedMapPacket;
+            client.RawSocket.ReceivedMoveSouthIncomingPacket += ReceivedMapPacket;
+            client.RawSocket.ReceivedMoveWestIncomingPacket += ReceivedMapPacket;
+            client.RawSocket.ReceivedFloorChangeDownIncomingPacket += ReceivedMapPacket;
+            client.RawSocket.ReceivedFloorChangeUpIncomingPacket += ReceivedMapPacket;
 
             tracking = true;
             processing = false;
@@ -168,7 +185,6 @@ namespace MapTracker.NET
                 uxTrackedTiles.Text = trackedTileCount.ToString("0,0");
                 uxTrackedItems.Text = trackedItemCount.ToString("0,0");
             }));
-            Application.DoEvents();
         }
 
         private Location GetPlayerLocation()
@@ -178,302 +194,62 @@ namespace MapTracker.NET
         #endregion
 
         #region Process Packets
-        private void IncomingSplitPacket(byte type, byte[] packet)
+        private bool ReceivedMapPacket(IncomingPacket packet)
         {
-            packetQueue.Enqueue(new SplitPacket((IncomingPacketType)type, packet));
-            ProcessPacketQueue();
-        }
-
-        private void ProcessPacketQueue()
-        {
-            if (!processing && packetQueue.Count > 0)
+            lock (this)
             {
-                StartProcessing();
-            }
-        }
-
-        private void StartProcessing()
-        {
-            processing = true;
-            ProcessPacket(packetQueue.Dequeue());
-        }
-
-        private void DoneProcessing()
-        {
-            processing = false;
-            ProcessPacketQueue();
-        }
-
-        private void ProcessPacket(SplitPacket splitPacket)
-        {
-            IncomingPacketType type = splitPacket.Type;
-            byte[] packet = splitPacket.Packet;
-
-            NetworkMessage msg = new NetworkMessage(packet);
-            type = (IncomingPacketType)msg.GetByte();
-
-            if (type == IncomingPacketType.MapDescription)
-            {
-                Log("MapDescription");
-                currentLocation = msg.GetLocation();
-                ParseMapDescription(msg, 
-                    currentLocation.X - 8, 
-                    currentLocation.Y - 6, 
-                    currentLocation.Z, 18, 14);
-                DoneProcessing();
-                return;
-            }
-            else if (type == IncomingPacketType.MoveNorth)
-            {
-                Log("MoveNorth");
-                currentLocation.Y--;
-                ParseMapDescription(msg, 
-                    currentLocation.X - 8, 
-                    currentLocation.Y - 6, 
-                    currentLocation.Z, 18, 1);
-            }
-            else if (type == IncomingPacketType.MoveEast)
-            {
-                Log("MoveEast");
-                currentLocation.X++;
-                ParseMapDescription(msg, 
-                    currentLocation.X + 9, 
-                    currentLocation.Y - 6, 
-                    currentLocation.Z, 1, 14);
-            }
-            else if (type == IncomingPacketType.MoveSouth)
-            {
-                Log("MoveSouth");
-                currentLocation.Y++;
-                ParseMapDescription(msg, 
-                    currentLocation.X - 8, 
-                    currentLocation.Y + 7, 
-                    currentLocation.Z, 18, 1);
-            }
-            else if (type == IncomingPacketType.MoveWest)
-            {
-                Log("MoveWest");
-                currentLocation.X--;
-                ParseMapDescription(msg, 
-                    currentLocation.X - 8, 
-                    currentLocation.Y - 6, 
-                    currentLocation.Z, 1, 14);
-            }
-            else if (type == IncomingPacketType.FloorChangeDown)
-            {
-                Log("FloorChangeDown");
-                currentLocation.X++; // East
-                currentLocation.Y++; // South
-                currentLocation.Z--;
-            }
-            else if (type == IncomingPacketType.FloorChangeUp)
-            {
-                Log("FloorChangeUp");
-                currentLocation.X--; // West
-                currentLocation.Y--; // North
-                currentLocation.Z++;
-            }
-            DoneProcessing();
-        }
-
-        private bool ParseMapDescription(NetworkMessage msg, int x, int y, int z, int width, int height)
-        {
-            int startz, endz, zstep;
-            //calculate map limits
-            if (z > 7)
-            {
-                startz = z - 2;
-                endz = System.Math.Min(16 - 1, z + 2);
-                zstep = 1;
-            }
-            else
-            {
-                startz = 7;
-                endz = 0;
-                zstep = -1;
-            }
-
-            for (int nz = startz; nz != endz + zstep; nz += zstep)
-            {
-                //parse each floor
-                if (!ParseFloorDescription(msg, x, y, nz, width, height, z - nz))
-                    return false;
-            }
-
-            return true;
-        }
-
-        private bool ParseFloorDescription(NetworkMessage msg, int x, int y, int z, int width, int height, int offset)
-        {
-            ushort skipTiles;
-
-            for (int nx = 0; nx < width; nx++)
-            {
-                for (int ny = 0; ny < height; ny++)
+                MapPacket p = (MapPacket)packet;
+                foreach (Tile tile in p.Tiles)
                 {
-                    if (staticSkipTiles == 0)
+                    if (!mapTiles.ContainsKey(tile.Location))
                     {
-                        ushort tileOpt = msg.PeekUInt16();
-                        if (tileOpt >= 0xFF00)
+                        OtMapTile mapTile = new OtMapTile();
+                        mapTile.Location = tile.Location;
+                        mapTile.TileId = (ushort)tile.Id;
+                        foreach (Item item in tile.Items)
                         {
-                            skipTiles = msg.GetUInt16();                            
-                            staticSkipTiles = (short)(skipTiles & 0xFF);
-                        }
-                        else
-                        {
-                            Location pos = new Location(x + nx + offset, y + ny + offset, z);
+                            OtMapItem mapItem = new OtMapItem();
+                            mapItem.AttrType = AttrType.None;
 
-                            if (!ParseTileDescription(msg, pos))
+                            if (clientToServer.ContainsKey((ushort)item.Id))
                             {
-                                return false;
+                                mapItem.ItemId = clientToServer[(ushort)item.Id];
                             }
-                            skipTiles = msg.GetUInt16();
-                            staticSkipTiles = (short)(skipTiles & 0xFF);
+                            else
+                            {
+                                Log("ClientId not in items.otb: " + item.Id.ToString());
+                                break;
+                            }
+
+                            if (item.HasExtraByte)
+                            {
+                                byte extra = item.Count;
+                                if (item.GetFlag(Tibia.Addresses.DatItem.Flag.IsRune))
+                                {
+                                    mapItem.AttrType = AttrType.Charges;
+                                    mapItem.Extra = extra;
+                                }
+                                else if (item.GetFlag(Tibia.Addresses.DatItem.Flag.IsStackable) ||
+                                    item.GetFlag(Tibia.Addresses.DatItem.Flag.IsSplash))
+                                {
+                                    mapItem.AttrType = AttrType.Count;
+                                    mapItem.Extra = extra;
+                                }
+                            }
+                            mapTile.Items.Add(mapItem);
                         }
-                    }
-                    else
-                    {
-                        staticSkipTiles--;
+                        mapTiles.Add(tile.Location, mapTile);
+                        trackedTileCount++;
+                        trackedItemCount += mapTile.Items.Count;
+                        UpdateStats();
                     }
                 }
             }
             return true;
         }
+        #endregion
 
-        private bool ParseTileDescription(NetworkMessage msg, Location pos)
-        {
-            bool ret = false;
-            OtMapTile mapTile = null;
-
-            SetNewMapBounds(pos);
-            mapTile = new OtMapTile();
-            mapTile.Location = pos;
-
-            int n = 0;
-            while (true)
-            {
-                n++;
-
-                ushort inspectTileId = msg.PeekUInt16();
-
-                if (inspectTileId >= 0xFF00)
-                {
-                    ret = true;
-                    break;
-                }
-                else
-                {
-                    if (n > 10)
-                    {
-                        ret = false;
-                        break;
-                    }
-
-                    InternalGetThing(msg, pos, n, mapTile);
-                }
-            }
-
-            if (!mapTiles.ContainsKey(pos))
-            {
-                mapTiles.Add(pos, mapTile);
-                trackedTileCount++;
-                trackedItemCount += mapTile.Items.Count;
-                UpdateStats();
-            }
-
-            return ret;
-        }
-
-        private bool InternalGetThing(NetworkMessage msg, Location pos, int n, OtMapTile mapTile)
-        {
-            ushort thingId;
-            try
-            {
-                thingId = msg.GetUInt16();
-            }
-            catch (Exception e)
-            {
-                Log("Error: " + e.Message);
-                return false;
-            }
-
-            if (thingId == 0x0061 || thingId == 0x0062)
-            {
-
-                if (thingId == 0x0062)
-                {
-                    msg.Position += 4;
-                }
-                else if (thingId == 0x0061)
-                {
-                    msg.Position += 8;
-                    int len = msg.GetUInt16();
-                    msg.Position += len;
-                }
-
-                msg.Position += 2;
-                int outfit = msg.GetUInt16();
-                if (outfit == 0)
-                    msg.Position += 2;
-                else
-                    msg.Position += 5;
-                msg.Position += 6;
-
-                return true;
-            }
-            else if (thingId == 0x0063)
-            {
-                msg.Position += 5;
-
-                return true;
-            }
-            else
-            {
-                Item item = new Item(client, thingId);
-                ushort oldThingId = 0;
-                if (clientToServer.ContainsKey(thingId))
-                {
-                    oldThingId = thingId;
-                    thingId = clientToServer[thingId];
-                }
-                else
-                {
-                    Log("ClientId not in items.otb: " + thingId.ToString());
-                }
-
-                if (n == 1)
-                {
-                    mapTile.TileId = thingId;
-                }
-                else
-                {
-                    OtMapItem mapItem = null;
-                    mapItem = new OtMapItem();
-                    mapItem.ItemId = thingId;
-                    mapItem.AttrType = AttrType.None;
-
-                    if (item.HasExtraByte)
-                    {
-                        byte extra = msg.GetByte();
-                        if (item.GetFlag(Tibia.Addresses.DatItem.Flag.IsRune))
-                        {
-                            mapItem.AttrType = AttrType.Charges;
-                            mapItem.Extra = extra;
-                        }
-                        else if (item.GetFlag(Tibia.Addresses.DatItem.Flag.IsStackable) ||
-                            item.GetFlag(Tibia.Addresses.DatItem.Flag.IsSplash))
-                        {
-                            mapItem.AttrType = AttrType.Count;
-                            mapItem.Extra = extra;
-                        }
-                    }
-                    mapTile.Items.Add(mapItem);
-                }
-
-                return true;
-            }
-        }
-
+        #region Helpers
         private void SetNewMapBounds(Location loc)
         {
             if (mapBoundsNW.Equals(Tibia.Objects.Location.Invalid))
@@ -514,7 +290,6 @@ namespace MapTracker.NET
             {
                 uxLog.AppendText(text + Environment.NewLine);
             }));
-            Application.DoEvents();
         }
         #endregion
     }
