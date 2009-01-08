@@ -230,11 +230,6 @@ namespace MapTracker.NET
                             != client.ReadInt32(Tibia.Addresses.Player.Z))
                             continue;
 
-                        if (tile.Location.Equals(new Location(32090, 32196, 7)))
-                        {
-                            int i = 0;
-                        }
-
                         SetNewMapBounds(tile.Location);
                         OtMapTile mapTile = new OtMapTile();
                         mapTile.Location = tile.Location;
