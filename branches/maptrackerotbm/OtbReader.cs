@@ -36,7 +36,7 @@ namespace MapTracker.NET
                         else
                         {
                             int type = stream.ReadByte();
-                            if (type >=0 && type <= 18)
+                            if (type >=0 && type <= 13)
                                 HandleItem();
                             break;
                         }
